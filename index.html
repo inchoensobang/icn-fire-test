@@ -7,19 +7,25 @@
 <style>
 body{margin:0;background:#f3f5f8;font-family:Arial,'맑은 고딕',sans-serif;color:#111}
 header{background:#0d47a1;color:white;text-align:center;padding:18px;font-size:26px;font-weight:bold}
-main{max-width:1000px;margin:24px auto;padding:0 16px}
-.card{background:white;border-radius:14px;padding:18px;box-shadow:0 4px 16px rgba(0,0,0,.12)}
+main{max-width:1000px;margin:22px auto;padding:0 14px}
+.card{background:white;border-radius:14px;padding:18px;box-shadow:0 4px 16px rgba(0,0,0,.12);margin-bottom:18px}
 h2{color:#0d47a1;margin-top:0}
-.search{width:100%;box-sizing:border-box;font-size:18px;padding:14px;border:1px solid #bbb;border-radius:10px;margin-bottom:16px}
+.search{width:100%;box-sizing:border-box;font-size:18px;padding:14px;border:1px solid #bbb;border-radius:10px;margin:12px 0 16px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.cat{padding:18px;border-radius:14px;color:white;font-weight:bold;font-size:20px;text-align:left}
+.cat small{display:block;font-size:14px;margin-top:6px;color:rgba(255,255,255,.9)}
+.c100{background:#ef6c00}.c200{background:#d50000}.c300{background:#8d6e63}.c400{background:#555}.c500{background:#2e7d32}.cSSG{background:#6a1b9a}
 .row{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #eee;padding:12px 4px;gap:10px}
 .sop-title{font-size:17px;line-height:1.4}
 .sop-num{color:#d50000;font-weight:bold;margin-right:6px}
 button{background:#0d47a1;color:white;border:0;border-radius:8px;padding:9px 14px;font-size:15px;font-weight:bold}
-.viewer{display:none}
+.viewer,.list{display:none}
 .viewer img{width:100%;max-width:900px;display:block;margin:14px auto;background:white}
 .nav{display:flex;justify-content:center;align-items:center;gap:10px;margin:14px 0;flex-wrap:wrap}
 .back{float:right}
 .small{color:#666;text-align:center;font-size:14px}
+footer{text-align:center;color:#777;font-size:13px;margin:28px 0}
+@media(max-width:650px){.grid{grid-template-columns:1fr}header{font-size:22px}.cat{font-size:18px}}
 </style>
 </head>
 <body>
@@ -27,9 +33,22 @@ button{background:#0d47a1;color:white;border:0;border-radius:8px;padding:9px 14p
 <header>🚒 인천소방 SOP 뷰어</header>
 
 <main>
-  <section id="list" class="card">
-    <h2>🔥 화재대응 SOP 200~243</h2>
-    <input id="search" class="search" placeholder="SOP 번호 또는 제목 검색 예: 208, 호스, 특수현상">
+  <section id="home" class="card">
+    <h2>📚 SOP 분류 선택</h2>
+    <div class="grid">
+      <button class="cat c100" onclick="openCategory('100')">Ⅰ 지휘통제<small>SOP100~113</small></button>
+      <button class="cat c200" onclick="openCategory('200')">Ⅱ 화재대응<small>SOP200~243</small></button>
+      <button class="cat c300" onclick="openCategory('300')">Ⅲ 사고대응<small>SOP300~329</small></button>
+      <button class="cat c400" onclick="openCategory('400')">Ⅳ 구급<small>SOP400~410</small></button>
+      <button class="cat c500" onclick="openCategory('500')">Ⅴ 상황관리<small>SOP500~504</small></button>
+      <button class="cat cSSG" onclick="openCategory('SSG')">Ⅵ 현장안전<small>SSG1~9</small></button>
+    </div>
+  </section>
+
+  <section id="list" class="card list">
+    <button class="back" onclick="showHome()">← 홈</button>
+    <h2 id="categoryTitle"></h2>
+    <input id="search" class="search" placeholder="SOP 번호 또는 제목 검색">
     <div id="sopList"></div>
   </section>
 
@@ -42,31 +61,69 @@ button{background:#0d47a1;color:white;border:0;border-radius:8px;padding:9px 14p
       <button onclick="nextPage()">다음 ▶</button>
     </div>
     <img id="sopImage" alt="SOP 이미지">
-    <p class="small">이미지를 누르면 크게 볼 수 있습니다.</p>
+    <p class="small">이미지를 누르면 새 창에서 크게 볼 수 있습니다.</p>
   </section>
 </main>
 
+<footer>
+  2026.3 재난현장 표준작전절차<br>
+  Viewer v1.0 · Edit. 윤영현
+</footer>
+
 <script src="sopData.js"></script>
 <script>
+const DATA = {
+  "100": typeof SOP100 !== "undefined" ? SOP100 : [],
+  "200": typeof SOP200 !== "undefined" ? SOP200 : [],
+  "300": typeof SOP300 !== "undefined" ? SOP300 : [],
+  "400": typeof SOP400 !== "undefined" ? SOP400 : [],
+  "500": typeof SOP500 !== "undefined" ? SOP500 : [],
+  "SSG": typeof SOPSSG !== "undefined" ? SOPSSG : []
+};
+
+const TITLES = {
+  "100":"Ⅰ 지휘통제 SOP 100~113",
+  "200":"Ⅱ 화재대응 SOP 200~243",
+  "300":"Ⅲ 사고대응 SOP 300~329",
+  "400":"Ⅳ 구급 SOP 400~410",
+  "500":"Ⅴ 상황관리 SOP 500~504",
+  "SSG":"Ⅵ 현장안전 SSG 1~9"
+};
+
+let currentCategory = null;
 let current = null;
 let currentPage = 1;
+
+function showHome(){
+  document.getElementById('home').style.display='block';
+  document.getElementById('list').style.display='none';
+  document.getElementById('viewer').style.display='none';
+}
+
+function openCategory(cat){
+  currentCategory = cat;
+  document.getElementById('home').style.display='none';
+  document.getElementById('viewer').style.display='none';
+  document.getElementById('list').style.display='block';
+  document.getElementById('categoryTitle').textContent = TITLES[cat];
+  document.getElementById('search').value = '';
+  renderList();
+}
 
 function renderList(){
   const keyword = document.getElementById('search').value.trim().toLowerCase();
   const box = document.getElementById('sopList');
   box.innerHTML = '';
 
-  SOP200
-    .filter(item =>
-      item.num.includes(keyword) ||
-      item.title.toLowerCase().includes(keyword)
-    )
+  DATA[currentCategory]
+    .filter(item => item.num.toLowerCase().includes(keyword) || item.title.toLowerCase().includes(keyword))
     .forEach(item => {
+      const prefix = currentCategory === 'SSG' ? 'SSG' : 'SOP';
       const row = document.createElement('div');
       row.className = 'row';
       row.innerHTML = `
         <div class="sop-title">
-          <span class="sop-num">SOP${item.num}</span>${item.title}
+          <span class="sop-num">${prefix}${item.num}</span>${item.title}
         </div>
         <button onclick="openSop('${item.num}')">보기</button>
       `;
@@ -75,49 +132,32 @@ function renderList(){
 }
 
 function openSop(num){
-  current = SOP200.find(item => item.num === num);
+  current = DATA[currentCategory].find(item => item.num === num);
   currentPage = 1;
-  document.getElementById('list').style.display = 'none';
-  document.getElementById('viewer').style.display = 'block';
+  document.getElementById('list').style.display='none';
+  document.getElementById('viewer').style.display='block';
   updateViewer();
 }
 
 function updateViewer(){
-  document.getElementById('viewerTitle').textContent = `SOP${current.num} ${current.title}`;
+  const prefix = currentCategory === 'SSG' ? 'SSG' : 'SOP';
+  document.getElementById('viewerTitle').textContent = `${prefix}${current.num} ${current.title}`;
   document.getElementById('pageInfo').textContent = `${currentPage} / ${current.pages}`;
-  const path = `pdf/200/${current.folder}/${currentPage}.jpg`;
-  document.getElementById('sopImage').src = path;
+  document.getElementById('sopImage').src = `pdf/${currentCategory}/${current.folder}/${currentPage}.jpg`;
 }
 
-function prevPage(){
-  if(!current) return;
-  if(currentPage > 1){
-    currentPage--;
-    updateViewer();
-  }
-}
-
-function nextPage(){
-  if(!current) return;
-  if(currentPage < current.pages){
-    currentPage++;
-    updateViewer();
-  }
-}
+function prevPage(){ if(current && currentPage > 1){ currentPage--; updateViewer(); } }
+function nextPage(){ if(current && currentPage < current.pages){ currentPage++; updateViewer(); } }
 
 function showList(){
-  document.getElementById('viewer').style.display = 'none';
-  document.getElementById('list').style.display = 'block';
+  document.getElementById('viewer').style.display='none';
+  document.getElementById('list').style.display='block';
 }
 
 document.getElementById('search').addEventListener('input', renderList);
-document.getElementById('sopImage').addEventListener('click', () => {
-  if(document.getElementById('sopImage').src){
-    window.open(document.getElementById('sopImage').src, '_blank');
-  }
-});
+document.getElementById('sopImage').addEventListener('click',()=>window.open(document.getElementById('sopImage').src,'_blank'));
 
-renderList();
+showHome();
 </script>
 
 </body>
